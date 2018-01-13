@@ -1,25 +1,132 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity Data Project"
+author: "James C. Birk"
+date: "January 12, 2018"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,error=TRUE)
+```
 
-## Loading and preprocessing the data
+## Initial Setup and Preprocessing of our assignment data
+```{r}
+library(dplyr)
+library(lattice)
+activityData<- read.csv("C://Users/James/Documents/R/activity.csv")
+summary(activityData)
+```
+I also want to see the structure of the data as well as the header.
+```{r}
+str(activityData)
+head(activityData)
+```
+I have three elements, and I see that the dates are currently coded as factors and not as dates, so I fix that next.
+```{r}
+activityData$date<- as.Date(activityData$date)
+str(activityData)
+```
+Now I can start addressing the assigment questions. 
+##What is the mean total number of steps taken per day?  
+
+Make a histogram and display it:
+```{r}
+sum_steps<-aggregate(activityData$steps, by=list(activityData$date), FUN=sum, na.rm=TRUE)
+names(sum_steps)<- c("date", "total")
+hist(sum_steps$total, 
+     breaks=seq(from=0, to=25000, by=2000),
+     col="green", 
+     xlab="Total number of steps", 
+     ylim=c(0, 25), 
+     main="Histogram of the total number of steps taken each day\n(NA removed)")
+mean(sum_steps$total)
+median(sum_steps$total)
+```
+##What is the average daily activity pattern? Which 5-minute interval,on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+## Determine the means across each interval
+ mean_steps <- aggregate(activityData$steps, 
+                       by=list(activityData$interval), 
+                       FUN=mean, 
+                       na.rm=TRUE)
+names(mean_steps)<- c("interval", "mean")
+## Develop a time series plot and answer the question
+plot(mean_steps$interval, 
+    mean_steps$mean, 
+      type="l", 
+      col="green", 
+     lwd=3, 
+      xlab="Interval [minutes]", 
+     ylab="Average number of steps", 
+      main="Time-series of the average number of steps per interval\n(NA removed)")
+
+```
+**What is that peak interval?**
+```{r}
+## Find the maximum mean and determine which interval it is in
+## R studio had no problem using the max function with missing values, but KnitR did not like it
+RobustMax <- function(x) {if (length(x)>0) max(x) else -Inf}
+themax_Mean<- which(mean_steps$means ==RobustMax(mean_steps$means))
+themax_Interval<- mean_steps[themax_Mean,1]
+
+```
+The answer is interval **835**
+
+##Imputing Missing Values
+**Calculate and report the total number of missing values in the data set.**
+```{r}
+##Count the missing values
+countthe_NAs<- sum(is.na(activityData$steps))
+countthe_NAs
+##Determine where the missing values are
+wherethe_NAs<- which(is.na(activityData$steps))
+##Use the mean of the number steps to fill in the missing values 
+more_means<- rep(mean(activityData$steps, na.rm=TRUE), times=length(wherethe_NAs))
+## And now we have an updated data set to plot
+activityData[wherethe_NAs, "steps"] <- more_means
+```
+
+**Make a new histogram and calculate and report the mean and median**
+```{r}
+newsum_steps<- aggregate(activityData$steps, by=list(activityData$date), FUN=sum)
+names(newsum_steps)<- c("date", "total")
+hist(newsum_steps$total, 
+    breaks=seq(from=0, to=25000, by=2500),
+      col="green", 
+      xlab="Total number of steps", 
+      ylim=c(0, 30), 
+      main="Histogram of the total number of steps taken each day", sub="With imputed values in place of NA")
+```  
+
+Here are the mean and median for the new data
+```{r}
+mean(newsum_steps$total)
+median(newsum_steps$total)
+```
+Imputing our missing data with the means of each interval has expanded our data set, since there are no longer missing values that we are disregarding. Additionally, the mean and median are equal and have both increased.  
+
+##Are there different activity patterns for weekdays and weekends?
+**Create a new factor variable in the dataset to indicate weekday and weekend**
+
+```{r}
+##Differentiate between weekdays and the weekend
+activityData2<- activityData%>%
+   mutate(weektype= ifelse(weekdays(activityData$date)=="Saturday" | weekdays(activityData$date)=="Sunday", "Weekend", "Weekday"))
+```
+**Make a panel plot of the 5-minute intervals and the average # of steps taken for both types of days**
+
+```{r panelPlot}
+mean_data <- aggregate(activityData2$steps, 
+                       by=list(activityData2$weektype, 
+                               activityData2$date, activityData2$interval), mean)
+
+names(mean_data) <- c("daytype", "Date", "interval", "mean")
 
 
+xyplot(mean ~ interval | daytype, mean_data, 
+       type="l", 
+       lwd=1, 
+       xlab="Interval", 
+       ylab="Number of steps", 
+       layout=c(1,2))
 
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
